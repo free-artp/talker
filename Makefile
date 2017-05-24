@@ -1,11 +1,13 @@
 # export PATH=/opt/rpi-tools/arm-bcm2708/arm-rpi-4.9.3-linux-gnueabihf/bin:$PATH
 
+# /opt/rpi-tools/arm-bcm2708/arm-rpi-4.9.3-linux-gnueabihf/arm-linux-gnueabihf/sysroot
+
 ARCH=arm
 CROSS_COMPILE=arm-linux-gnueabihf-
-
+MY_SYSROOT=../../rpi-sysroot
 
 TARGET=talker
-SOURCES=main.c comm.c crc.c
+SOURCES=main.c comm.c config.c
 
 CC=$(CROSS_COMPILE)cc
 
@@ -22,8 +24,9 @@ OBJCOPY=$(CROSS_COMPILE)objcopy
 TOOLCHAIN := $(shell cd $(dir $(shell which $(CROSS_COMPILE)gcc))/.. && pwd -P)
 
 #CCFLAGS = -O0 -g -Wall
-CCFLAGS = -O0 -g
-LDFLAGS = -L$(TOOLCHAIN)/arm-linux-gnueabihf/sysroot/lib/ -l pthread
+CCFLAGS = -O0 -g -I$(MY_SYSROOT)/usr/include -DDEBUG
+#LDFLAGS = -L$(TOOLCHAIN)/arm-linux-gnueabihf/sysroot/lib/ -lpthread -lwiringPi
+LDFLAGS = -L$(MY_SYSROOT)/lib/arm-linux-gnueabihf -L$(MY_SYSROOT)/usr/lib -lpthread -lwiringPi -liniparser
 
 
 OBJECTS = $(SOURCES:%.c=%.o)
@@ -31,7 +34,8 @@ OBJECTS = $(SOURCES:%.c=%.o)
 all : $(TARGET)
 
 install: $(TARGET)
-	cp $(TARGET) /srv/scan/
+	@cp $(TARGET) /srv/scan/
+	@cp $(TARGET).ini /srv/scan/
 
 $(TARGET): $(OBJECTS)
 	$(CC) $^ -o $@ $(LDFLAGS)
@@ -42,3 +46,6 @@ $(TARGET): $(OBJECTS)
 clean :
 	@rm -f $(TARGET) $(OBJECTS)
 .PHONY : clean
+
+iniparser:	iniparser.o
+	$(CC) iniparser.o -o iniparser $(LDFLAGS)

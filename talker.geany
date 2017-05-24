@@ -1,0 +1,46 @@
+[file_prefs]
+final_new_line=true
+ensure_convert_new_lines=false
+strip_trailing_spaces=false
+replace_tabs=false
+
+[indentation]
+indent_width=4
+indent_type=1
+indent_hard_tab_width=8
+detect_indent=false
+detect_indent_width=false
+indent_mode=2
+
+[project]
+name=talker
+base_path=/home/artp/rpi/projects/talker/
+description=
+file_patterns=
+
+[long line marker]
+long_line_behaviour=1
+long_line_column=72
+
+[files]
+current_page=3
+FILE_NAME_0=675;Make;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2FMakefile;0;4
+FILE_NAME_1=0;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fcomm.c;0;4
+FILE_NAME_2=172;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fcomm.h;0;4
+FILE_NAME_3=1223;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fconfig.c;0;4
+FILE_NAME_4=0;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fconfig.h;0;4
+FILE_NAME_5=0;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fdaemon.c;0;4
+FILE_NAME_6=1301;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fmain.c;0;4
+FILE_NAME_7=1288;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fopto22.h;0;4
+FILE_NAME_8=41;Conf;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Ftalker.ini;0;4
+
+[VTE]
+last_dir=/home/artp
+
+[build-menu]
+NF_00_LB=_Make
+NF_00_CM=PATH=/opt/rpi-tools/arm-bcm2708/arm-rpi-4.9.3-linux-gnueabihf/bin:$PATH make
+NF_00_WD=
+NF_03_LB=Make install
+NF_03_CM=make install
+NF_03_WD=

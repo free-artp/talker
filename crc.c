@@ -19,7 +19,9 @@
 // Due to the way in which we process the CRC, the bits of the polynomial
 //  are stored in reverse order. This makes the polynomial 0x8408.
 */
-#define POLY 0x8408
+
+//#define POLY 0x8408
+////#define POLY 0x1021
  
 /*
 // note: when the crc is included in the message, the valid crc is:
@@ -78,6 +80,7 @@ int     crc_ok = 0x470F;
 //      RETURN crc
 //
 **************************************************************************/
+/*
 unsigned short crc16(data_p, length)
 char *data_p;
 unsigned short length;
@@ -108,4 +111,83 @@ unsigned short length;
        crc = (crc << 8) | (data >> 8 & 0xFF);
         
        return (crc);
+}
+*/
+/*
+	def calc_CRC(self,message):
+		#CRC-16-CITT poly, the CRC sheme used by ymodem protocol
+	#    poly = 0x11021
+		poly = 0x1021
+		#16bit operation register, initialized to zeros
+	#    reg = 0xFFFF
+		reg = 0
+		#pad the end of the message with the size of the poly
+		message += '\x00\x00' 
+		#for each bit in the message
+		for byte in message:
+			mask = 0x80
+			while(mask > 0):
+				#left shift by one
+				reg<<=1
+				#input the next bit from the message into the right hand side of the op reg
+				if ord(byte) & mask:   
+					reg += 1
+				mask>>=1
+				#if a one popped out the left of the reg, xor reg w/poly
+				if reg > 0xffff:            
+					#eliminate any one that popped out the left
+					reg &= 0xffff           
+					#xor with the poly, this is the remainder
+					reg ^= poly
+		return reg
+
+*/
+
+// 01-04-6e-04-c2d5
+/*
+#define POLY 0x1021
+
+unsigned short crc16(data_p, length)
+char *data_p;
+unsigned short length;
+{
+       unsigned int data;
+       unsigned char mask;
+       unsigned long crc;
+       
+       length +=2; 
+       
+//       crc = 0xffff;
+       crc = 0x0000;
+
+       if (length == 0)
+              return (~crc);
+        
+       do {
+			for ( mask = 0x80, data = (unsigned int)0xff & *data_p++; (mask & 0xff) >0 ; mask>>=1 ) {
+				crc <<= 1;
+				if (data & mask) crc |=1;
+				if (crc & 0x10000) {
+					crc &= 0xffff;
+					crc ^= POLY;
+				}
+			}
+
+       } while (--length);
+       
+	return(crc & 0xffff);
+}
+*/
+
+unsigned short crc16(const unsigned char* data_p, unsigned char length){
+    unsigned char x;
+//    unsigned short crc = 0xFFFF;
+    unsigned short crc = 0;
+
+    while (length--){
+        x = crc >> 8 ^ *data_p++;
+        x ^= x>>4;
+        crc = (crc << 8) ^ ((unsigned short)(x << 12)) ^ ((unsigned short)(x <<5)) ^ ((unsigned short)x);
+    }
+    return crc;
 }
