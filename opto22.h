@@ -45,7 +45,9 @@ typedef struct o22_wood {
 
 typedef struct o22_common {
 	unsigned short state;
+	
 	o22_wood_t		last;
+	
 	unsigned char  reserve1;
 	unsigned char  reserve2;
 	unsigned char  reserve3;

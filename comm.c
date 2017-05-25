@@ -124,7 +124,6 @@ void set_blocking (int fd, int should_block)
                 syslog(LOG_ERR,"error %d setting term attributes", errno);
 }
 
-//=================================================
 void init_hard() {
 	wiringPiSetup();
 	pinMode ( pin_dtr, OUTPUT);
@@ -133,23 +132,45 @@ void init_hard() {
 	buff_cnt = 0;
 }
 
+//================================================= crc calculation
+
+void tohex(unsigned char * in, size_t insz, char * out, size_t outsz)
+{
+    unsigned char * pin = in;
+    const char * hex = "0123456789ABCDEF";
+    char * pout = out;
+    for(; pin < in+insz; pout +=2, pin++){
+        pout[0] = hex[(*pin>>4) & 0xF];
+        pout[1] = hex[ *pin     & 0xF];
+        if (pout + 2 - out > outsz){
+            /* Better to truncate output string than overflow buffer */
+            /* it would be still better to either return a status */
+            /* or ensure the target buffer is large enough and it never happen */
+            break;
+        }
+    }
+    *pout = 0;
+}
 
 
-//=================================================
-//
-// 110 - 01-04-6e-04-c2d5
 unsigned short crc16(const unsigned char* data_p, unsigned char length){
     unsigned char x;
-//    unsigned short crc = 0xFFFF;
-    unsigned short crc = 0;
+    unsigned short crc = 0;		// CRC-16 XMODEM. Otherwise 0xFFFF
 
-    while (length--){
+	i = length;
+    while (i--){
         x = crc >> 8 ^ *data_p++;
         x ^= x>>4;
         crc = (crc << 8) ^ ((unsigned short)(x << 12)) ^ ((unsigned short)(x <<5)) ^ ((unsigned short)x);
     }
     return crc;
 }
+
+
+//=================================================
+//
+// 110 		- 01-04-6e-04-c2d5
+// 103(514) - 01 06 67 04 02 02 1a3a
 
 
 int mk_req( unsigned char cmd, unsigned char* dop, size_t ldop) {
@@ -194,27 +215,30 @@ int mk_req( unsigned char cmd, unsigned char* dop, size_t ldop) {
 void * writer(void *arg) {
 	int l,i;
 	unsigned char* s;
+	o22_header_t* header;
+	unsigned short crc;
+	
+	header = (o22_header_t*)buffer;
 	
 	while (1) {
 		
 		sleep( main_delay );
 		
-		
+#ifdef DEBUG
 		if (buff_cnt) {
-			for(i=0, s = s_buffer; i<buff_cnt; i++) {
-				s += sprintf(s, "%02x ", buffer[i]);
-			}
-			*s = 0;
-			
-			syslog(LOG_INFO, "writer: [%d] %s", buff_cnt, s_buffer);
+			crc = crc16(buffer, header->packet_size);
+			tohex(buffer, buff_cnt, s_buffer, sizeof(s_buffer));
+			syslog(LOG_INFO, "writer: [%d] %s - %04x", buff_cnt, s_buffer, crc);
 		}
+#endif
 
+		memset(buffer,(unsigned char)0,sizeof(buffer));
 		l = mk_req(CMD_COMMON_INFO, (void*)0, 0);
 
-		for( i=0; i<6; i++) {
-			printf("%02x-", buffer[i]);
-		}
-		printf("\n");
+#ifdef DEBUG
+		tohex(buffer, l, s_buffer, sizeof(s_buffer));
+		syslog(LOG_INFO, "writer send %d bytes %s", l, s_buffer);
+#endif
 		
 		digitalWrite (pin_dtr, HIGH);
 		
@@ -237,7 +261,6 @@ void * reader(void *arg) {
 	unsigned short* ind;
 	o22_header_t* header;
 	o22_common_t* cmn;
-	int fl, got_header;
 	unsigned short crc;
 	
 	poll_fd.fd = fd_port;
@@ -245,7 +268,6 @@ void * reader(void *arg) {
 	poll_fd.revents = 0;
 
 	header = (o22_header_t*)buffer;
-	got_header = 0;
 
 	while (1) {
 		n = poll(&poll_fd, 1, -1); // wait here
@@ -260,24 +282,29 @@ void * reader(void *arg) {
 			n = read(poll_fd.fd, &buffer[buff_cnt], sizeof(buffer)-buff_cnt );
 			buff_cnt += n;
 			poll_fd.revents = 0;
-			
-			if ( !got_header && (buff_cnt>= sizeof(o22_header_t)) ) {
-				got_header = 1;
-				syslog(LOG_INFO, "reader header: a:%d s:%d c:%d dn:%d", (int)header->address, (int)header->packet_size, (int)header->cmd, (int)header->dop_byte_num );
-			}
-			
-			if ( got_header && (buff_cnt>= header->packet_size+2) ) {
-				got_header = 0;
+		
+			if ( fl_answer > 0 && buff_cnt>= header->packet_size+2 ) {
+				fl_answer = 0;
+				
+				syslog(LOG_INFO, "reader header: buff_cnt: %d size:%d dn:%d",
+					buff_cnt,
+					(int)header->packet_size,
+					(int)header->dop_byte_num );
+				
 				crc = crc16(buffer, header->packet_size);
+				
 				cmn  = (o22_common_t*)&buffer[4];
-				syslog(LOG_INFO, "reader crc: %04x - %02x%02x. data: %d, %d, %d, %d",
+				syslog(LOG_INFO, "reader crc: %04x buff.end: %02x%02x index: %d d1: %d d2: %d d3: %d lowA:%d upA:%d",
 					crc, buffer[header->packet_size],buffer[header->packet_size+1],
-					cmn->last.index, cmn->last.d1, cmn->last.d3, cmn->last.length );
+					cmn->last.index, cmn->last.d1, cmn->last.d3, cmn->last.length,
+					cmn->cur_low_beamA, cmn->cur_upp_beamA);
 			}
 
 			buff_cnt = (buff_cnt >= 2047)?0:buff_cnt;
+			
 		}
 	}
 }
+
 
 
