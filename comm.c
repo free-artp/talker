@@ -12,16 +12,22 @@
 
 #include <arpa/inet.h>
 
+#include <wiringPi.h>
+
 #include "comm.h"
 #include "opto22.h"
-
-#include <wiringPi.h>
+#include "scheduler.h"
+#include "gates.h"
+#include "info.h"
 
 //----------------------------------------
 
 unsigned char	buffer[BUFF_LEN];
 unsigned int buff_cnt;
-int	fl_answer;
+
+int	fl_answer=0;
+volatile unsigned short current_dmts=0;
+
 
 #ifdef DEBUG
 unsigned char	s_buffer[BUFF_LEN];
@@ -154,7 +160,7 @@ void tohex(unsigned char * in, size_t insz, char * out, size_t outsz)
 
 
 unsigned short crc16(const unsigned char* data_p, unsigned char length){
-    unsigned char x;
+    unsigned char x,i;
     unsigned short crc = 0;		// CRC-16 XMODEM. Otherwise 0xFFFF
 
 	i = length;
@@ -224,7 +230,7 @@ void * writer(void *arg) {
 		
 		sleep( main_delay );
 		
-#ifdef DEBUG
+#ifdef DEBUG_SYSLOG
 		if (buff_cnt) {
 			crc = crc16(buffer, header->packet_size);
 			tohex(buffer, buff_cnt, s_buffer, sizeof(s_buffer));
@@ -261,7 +267,8 @@ void * reader(void *arg) {
 	unsigned short* ind;
 	o22_header_t* header;
 	o22_common_t* cmn;
-	unsigned short crc;
+	unsigned short crc, crc_buff;
+	gate_t *gt;
 	
 	poll_fd.fd = fd_port;
 	poll_fd.events = POLLIN;
@@ -278,27 +285,54 @@ void * reader(void *arg) {
 		}
 
 		if (poll_fd.revents & POLLIN) {
-			
 			n = read(poll_fd.fd, &buffer[buff_cnt], sizeof(buffer)-buff_cnt );
 			buff_cnt += n;
 			poll_fd.revents = 0;
 		
 			if ( fl_answer > 0 && buff_cnt>= header->packet_size+2 ) {
 				fl_answer = 0;
-				
+				INFO_CLS();
+#ifdef DEBUG_SYSLOG				
 				syslog(LOG_INFO, "reader header: buff_cnt: %d size:%d dn:%d",
 					buff_cnt,
 					(int)header->packet_size,
 					(int)header->dop_byte_num );
-				
+#endif
 				crc = crc16(buffer, header->packet_size);
+				crc_buff = buffer[header->packet_size] <<8 | buffer[header->packet_size+1];
+				if (crc != crc_buff) {
+					syslog(LOG_ERR, "reader: crc error %04x %04x", crc, crc_buff);
+					continue;
+				}
 				
 				cmn  = (o22_common_t*)&buffer[4];
+				current_dmts = cmn->cur_dmts;
+				
+#ifdef DEBUG_SYSLOG				
 				syslog(LOG_INFO, "reader crc: %04x buff.end: %02x%02x index: %d d1: %d d2: %d d3: %d lowA:%d upA:%d",
 					crc, buffer[header->packet_size],buffer[header->packet_size+1],
 					cmn->last.index, cmn->last.d1, cmn->last.d3, cmn->last.length,
 					cmn->cur_low_beamA, cmn->cur_upp_beamA);
+#endif
+				//printf("wood %d\n",cmn->last.index);
+				INFO_PRINTLC(22,25,"WOOD:%d", cmn->last.index);
+
+				if (scheduler_findtask_by_wood_index(cmn->last.index) == NULL) {
+					syslog(LOG_INFO, "reader: new wood %d", cmn->last.index);
+					if ( (gt = gates_choose_by_wood( &cmn->last )) == NULL ) {
+						syslog(LOG_ERR, "gate could not find gate for wood %d", cmn->last.index);
+						continue;
+					} else {
+						if (scheduler_addtask( gt->num, cmn->cur_dmts + gt->dmts, &cmn->last, SCH_LOCK ) < 0 ){
+							syslog(LOG_ERR, "reader: no place for new data");
+							continue;
+						}
+					}
+				}
+//				scheduler_dump();
+//				gate_check(cmn->cur_dmts);
 			}
+
 
 			buff_cnt = (buff_cnt >= 2047)?0:buff_cnt;
 			

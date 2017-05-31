@@ -12,10 +12,16 @@
 
 #include "config.h"
 #include "comm.h"
+#include "scheduler.h"
+#include "info.h"
+
+#ifdef INFO
+FILE * infoc;
+#endif
 
 int main(int argc, char* argv[]) {
 	
-	pthread_t twriter, treader;
+	pthread_t twriter, treader, tscheduler;
 	int result;
 	
 	
@@ -45,8 +51,11 @@ int main(int argc, char* argv[]) {
 
 	syslog(LOG_INFO, "port configured");
 
-	init_hard();
+	INFO_INIT();
 	
+	init_hard();
+	init_scheduler();
+	scheduler_dump();
 
 	result = pthread_create(&twriter, NULL, writer, NULL);
 	if ( result != 0 ) {
@@ -61,15 +70,27 @@ int main(int argc, char* argv[]) {
 		exit(0);
 	}
 	syslog(LOG_INFO, "reader created");
+
+	result = pthread_create(&tscheduler, NULL, scheduler_executor, NULL);
+	if ( result != 0 ) {
+		syslog(LOG_ERR, "could not create thread sheduler_executor");
+		exit(0);
+	}
+	syslog(LOG_INFO, "scheduler_executor created");
 	//----------------------------------------------------------
 	result = pthread_join(twriter, NULL);
 	if (result != 0) {
-		perror("Joining the first thread");
+		perror("Joining the 1 thread");
 		return EXIT_FAILURE;
 	}
 	result = pthread_join(treader, NULL);
 	if (result != 0) {
-		perror("Joining the second thread");
+		perror("Joining the 2 thread");
+		return EXIT_FAILURE;
+	}
+	result = pthread_join(tscheduler, NULL);
+	if (result != 0) {
+		perror("Joining the 3 thread");
 		return EXIT_FAILURE;
 	}
 

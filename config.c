@@ -5,9 +5,66 @@
 #include <termios.h>
 
 #include "comm.h"
+#include "gates.h"
 
 #include <iniparser.h>
 #include <dictionary.h>
+
+
+/*
+
+dmts = 20
+dmin = 0
+dmax = 200
+pindir = 1
+dir = 1
+delay = 100
+
+*/
+ 
+int config_gates(dictionary *ini, int gate_num){
+	char buf[32];
+	int n;
+	
+	sprintf(buf,"gate-%-d:dmts", gate_num+1);
+	if( (gates[gate_num].dmts = iniparser_getint( ini, buf, -1 )) < 0 ) {
+		syslog(LOG_ERR, "gate:%d no dmts", gate_num);
+		return 1;
+	}
+	sprintf(buf,"gate-%-d:dmin", gate_num+1);
+	if( (gates[gate_num].dmin = iniparser_getint( ini, buf, -1 )) < 0 ) {
+		syslog(LOG_ERR, "gate:%d no dmin", gate_num);
+		return 1;
+	}
+	sprintf(buf,"gate-%-d:dmax", gate_num+1);
+	if( (gates[gate_num].dmax = iniparser_getint( ini, buf, -1 )) < 0 ) {
+		syslog(LOG_ERR, "gate:%d no dmax", gate_num);
+		return 1;
+	}
+	sprintf(buf,"gate-%-d:pin", gate_num+1);
+	if( (gates[gate_num].pin = iniparser_getint( ini, buf, -1 )) < 0 ) {
+		syslog(LOG_ERR, "gate:%d no pin", gate_num);
+		return 1;
+	}
+	sprintf(buf,"gate-%-d:pindir", gate_num+1);
+	if( (gates[gate_num].pindir = iniparser_getint( ini, buf, -1 )) < 0 ) {
+		syslog(LOG_ERR, "gate:%d no pindir", gate_num);
+		return 1;
+	}
+	sprintf(buf,"gate-%-d:dir", gate_num+1);
+	if( (gates[gate_num].dir = iniparser_getint( ini, buf, -1 )) < 0 ) {
+		syslog(LOG_ERR, "gate:%d no dir", gate_num);
+		return 1;
+	}
+	sprintf(buf,"gate-%-d:delay", gate_num+1);
+	if( (gates[gate_num].delay = iniparser_getint( ini, buf, -1 )) < 0 ) {
+		syslog(LOG_ERR, "gate:%d no delay", gate_num);
+		return 1;
+	}
+
+	
+	return 0;
+}
 
 int config(int argc, char* argv[]) {
 	int opt;
@@ -65,6 +122,19 @@ int config(int argc, char* argv[]) {
 						exit(1);
 					}
 					syslog(LOG_INFO, "send delay: %d", send_delay);
+				}
+				
+				if ( gates_num = iniparser_getint(ini, "Gates:number", 0) ) {
+					gates = malloc( sizeof(gate_t) * gates_num);
+					for (n=0; n < gates_num; n++ ){
+						if ( config_gates(ini, n) ) {
+							syslog(LOG_ERR, "could not configure gate %d", n);
+							closelog();
+							exit(1);
+						}
+						syslog(LOG_INFO, "gate-%-d dmts:%d dmin:%d dmax:%d pindir:%d dir:%d delay:%d",n,
+							gates[n].dmts, gates[n].dmin, gates[n].dmax, gates[n].pindir, gates[n].dir, gates[n].delay);
+					}
 				}
 				
 				iniparser_freedict(ini);

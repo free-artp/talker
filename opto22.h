@@ -64,7 +64,8 @@ typedef struct o22_common {
 
 #pragma pack(pop)
 
-
+// declared in comm.c
+extern volatile unsigned short current_dmts;
 extern int	fl_answer;
 
 
