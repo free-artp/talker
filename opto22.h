@@ -66,6 +66,7 @@ typedef struct o22_common {
 
 // declared in comm.c
 extern volatile unsigned short current_dmts;
+extern volatile unsigned short last_wood_index;
 extern int	fl_answer;
 
 

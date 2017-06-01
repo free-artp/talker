@@ -7,7 +7,7 @@
 	#define DEFAULT_SERIAL_PORT "/dev/ttyS0"
 	#define DEFAULT_BAUD B19200
 	#define DEFAULT_MESSAGE "test"
-	#define DEFAULT_DELAY 2
+	#define DEFAULT_DELAY 1000000		// usec
 	#define DEFAULT_DTR_PIN 1
 	#define DEFAULT_SEND_DELAY 3500
 
@@ -31,6 +31,7 @@
 
 	int		main_delay;
 
+	void init_port();
 	int set_baud(char* baud_s);
 	int set_interface_attribs (int fd, int speed, int parity);
 	void set_blocking (int fd, int should_block);

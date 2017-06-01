@@ -7,7 +7,7 @@
 
 typedef struct gate {
 	unsigned short num;
-	unsigned short dmts;
+	unsigned short dmts_delay;
 	unsigned short dmin;
 	unsigned short dmax;
 	unsigned short pindir;

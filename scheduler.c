@@ -4,9 +4,13 @@
 #include <pthread.h>
 #include <sched.h>
 #include <unistd.h>
+#include <syslog.h>
 
-#include "scheduler.h"
+
 #include "info.h"
+#include "gates.h"
+#include "opto22.h"
+#include "scheduler.h"
 
 scheduler_item_t *rootFill = NULL;
 scheduler_item_t *rootEmpty = NULL;
@@ -47,7 +51,7 @@ void init_scheduler() {
 }
 
 
-int scheduler_addtask( unsigned short ngate, unsigned short dmts, o22_wood_t *wood, int check_lock) {
+int scheduler_addtask( unsigned short cur_dmts, gate_t *cur_gate, o22_wood_t *wood, int check_lock) {
 	scheduler_item_t *tmp;
 
 	if (check_lock) spinlock(&scheduler_list_busy);
@@ -63,8 +67,10 @@ int scheduler_addtask( unsigned short ngate, unsigned short dmts, o22_wood_t *wo
 	rootFill = tmp;
 
 	memcpy( (void *)&tmp->wood, (void *)wood, sizeof(o22_wood_t) );
-	tmp->dmts = dmts;
-	tmp->ngate = ngate;
+	syslog(LOG_INFO, "gate: wood %d, D2:%d set gate %d when %d", wood->index, wood->d2, cur_gate->num, cur_dmts + cur_gate->dmts_delay );
+
+	tmp->dmts_start = cur_dmts;
+	tmp->ngate = cur_gate->num;
 	
 	if (check_lock) spinunlock(&scheduler_list_busy);
 	
@@ -74,22 +80,29 @@ int scheduler_addtask( unsigned short ngate, unsigned short dmts, o22_wood_t *wo
 int scheduler_droptask(scheduler_item_t *t, int check_lock){
 	scheduler_item_t *tmp;
 
+	syslog(LOG_INFO, "drop task wood:%d", t->wood.index);
+	
 	if (check_lock) spinlock(&scheduler_list_busy);
 	
 	if (t == rootFill) {
 		rootFill = t->next;
 	} else {
+		// ищем элемент, который ДО указанного (удаляемого)
 		tmp = rootFill;
 		while (tmp) {
 			if ( tmp->next == t) break;
-			tmp++;
+			tmp = tmp->next;
 		} 
 		if (tmp == NULL){
 			if (check_lock) spinunlock(&scheduler_list_busy);
 			return SCH_BADPTR;
 		}
+		// сейчас tmp указывает на предыдущий, относительно удаляемого, элемент
+		// т.е. в его next ссылка на удаляемый
+		// перенесем в next предыдущего ссылку на элемент, следующий за удаляемым
 		tmp->next = t->next;
 	}
+	// вставляем освободившийся элемент в цепочку Empty
 	t->next = rootEmpty;
 	rootEmpty = t;
 	
@@ -125,7 +138,9 @@ scheduler_item_t * scheduler_findtask_by_wood_index(unsigned short index) {
 // ---------------- thread for check the wood's list
 //#define timer_expired(t) \
 //	((clock_time_t)(clock_time() - (t)->start) >= (clock_time_t)(t)->interval)
-
+//
+// unsigned int
+// (current - start) >= interval
 
 void * scheduler_executor(void *arg) {
 	scheduler_item_t *tmp, *next;
@@ -139,22 +154,27 @@ void * scheduler_executor(void *arg) {
 		++k;
 
 #ifdef INFO
-		k %= 250;
-		if (k == 0) {
+		if ( k >= 200 ) {
+			k = 0;
 			spinlock(&scheduler_list_busy);
-			for (tmp = rootFill, i = 0 ; !(tmp==NULL); i++) {
-				INFO_PRINTLC(i+1,25,"%d %c %x index:%d D1:%d D2:%d D3:%d Length:%d GATE:%d DMTS: %d", i, (tmp->dmts <= current_dmts)?'X':' ' , tmp,
+			for (tmp = rootFill, i = 0 ; !(tmp==NULL); i++, tmp=tmp->next) {
+				INFO_PRINTLC(INFO_LIST_LINE + i,13,"%d %d index:%d D1:%d D2:%d D3:%d Length:%d GATE:%d",
+					i, tmp->dmts_start + gates[tmp->ngate].dmts_delay,
 					tmp->wood.index, tmp->wood.d1, tmp->wood.d2, tmp->wood.d3, tmp->wood.length,
-					tmp->ngate, tmp->dmts);
+					tmp->ngate);
 			}
 			spinunlock( &scheduler_list_busy );
+			for (; i<MAX_SCHTASKS; i++)
+				INFO_PRINTLC(INFO_LIST_LINE + i,13,"%d                                                                  ",i);
+
 		}
 #endif
 
 		if ( !(old_dmts == current_dmts) ) {
+			INFO_PRINTLC(INFO_MAIN_LINE, 10, "DMTS:%d", current_dmts);
 			spinlock(&scheduler_list_busy);
 			for (tmp = rootFill; !(tmp==NULL);) {
-				if ( tmp->dmts <= current_dmts ) {
+				if ( (current_dmts - tmp->dmts_start) >= gates[tmp->ngate].dmts_delay ) {
 					next = tmp->next;
 					gate_run( tmp->ngate );
 					scheduler_droptask(tmp, SCH_NOLOCK);
@@ -164,8 +184,9 @@ void * scheduler_executor(void *arg) {
 				}
 			}
 			spinunlock( &scheduler_list_busy );
+			old_dmts = current_dmts;
 		}
 		usleep(1000);
-		old_dmts = current_dmts;
+		
 	}
 }

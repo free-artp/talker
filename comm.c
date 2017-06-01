@@ -27,6 +27,7 @@ unsigned int buff_cnt;
 
 int	fl_answer=0;
 volatile unsigned short current_dmts=0;
+volatile unsigned short last_wood_index=0;
 
 
 #ifdef DEBUG
@@ -40,6 +41,24 @@ int		pin_dtr;			// пин для переключения прием.перед�
 int		send_delay;			// задержка до выключения приемника
 
 //----------------------------------------
+
+void init_port() {
+
+	fd_port = open (fn_port, O_RDWR | O_NOCTTY | O_NDELAY);
+	
+	if (fd_port < 0)
+	{
+			syslog(LOG_ERR, "error %d opening %s: %s", errno, fn_port, strerror (errno) );
+			closelog();
+			exit(1);
+	}
+
+	set_interface_attribs (fd_port, baud, 0);  // set speed to 115,200 bps, 8n1 (no parity)
+	set_blocking (fd_port, 0);                // set no blocking
+
+	syslog(LOG_INFO, "port %s configured", fn_port);
+}
+
 
 int set_baud(char* baud_s) {
   int b;
@@ -228,7 +247,7 @@ void * writer(void *arg) {
 	
 	while (1) {
 		
-		sleep( main_delay );
+		usleep( main_delay );
 		
 #ifdef DEBUG_SYSLOG
 		if (buff_cnt) {
@@ -241,7 +260,7 @@ void * writer(void *arg) {
 		memset(buffer,(unsigned char)0,sizeof(buffer));
 		l = mk_req(CMD_COMMON_INFO, (void*)0, 0);
 
-#ifdef DEBUG
+#ifdef DEBUG_SYSLOG
 		tohex(buffer, l, s_buffer, sizeof(s_buffer));
 		syslog(LOG_INFO, "writer send %d bytes %s", l, s_buffer);
 #endif
@@ -268,13 +287,15 @@ void * reader(void *arg) {
 	o22_header_t* header;
 	o22_common_t* cmn;
 	unsigned short crc, crc_buff;
-	gate_t *gt;
+	gate_t *cur_gate;
 	
 	poll_fd.fd = fd_port;
 	poll_fd.events = POLLIN;
 	poll_fd.revents = 0;
 
 	header = (o22_header_t*)buffer;
+
+	INFO_CLS();
 
 	while (1) {
 		n = poll(&poll_fd, 1, -1); // wait here
@@ -291,7 +312,6 @@ void * reader(void *arg) {
 		
 			if ( fl_answer > 0 && buff_cnt>= header->packet_size+2 ) {
 				fl_answer = 0;
-				INFO_CLS();
 #ifdef DEBUG_SYSLOG				
 				syslog(LOG_INFO, "reader header: buff_cnt: %d size:%d dn:%d",
 					buff_cnt,
@@ -314,23 +334,23 @@ void * reader(void *arg) {
 					cmn->last.index, cmn->last.d1, cmn->last.d3, cmn->last.length,
 					cmn->cur_low_beamA, cmn->cur_upp_beamA);
 #endif
-				//printf("wood %d\n",cmn->last.index);
-				INFO_PRINTLC(22,25,"WOOD:%d", cmn->last.index);
+				INFO_PRINTLC(INFO_MAIN_LINE,25,"WOOD:%d", cmn->last.index);
 
-				if (scheduler_findtask_by_wood_index(cmn->last.index) == NULL) {
+//				if (scheduler_findtask_by_wood_index(cmn->last.index) == NULL) {
+				if ( !(last_wood_index == cmn->last.index) ) {
 					syslog(LOG_INFO, "reader: new wood %d", cmn->last.index);
-					if ( (gt = gates_choose_by_wood( &cmn->last )) == NULL ) {
+					if ( (cur_gate = gates_choose_by_wood( &cmn->last )) == NULL ) {
 						syslog(LOG_ERR, "gate could not find gate for wood %d", cmn->last.index);
 						continue;
 					} else {
-						if (scheduler_addtask( gt->num, cmn->cur_dmts + gt->dmts, &cmn->last, SCH_LOCK ) < 0 ){
+						syslog(LOG_INFO, "reader: add task");
+						if (scheduler_addtask( cmn->cur_dmts, cur_gate, &cmn->last, SCH_LOCK ) < 0 ){
 							syslog(LOG_ERR, "reader: no place for new data");
 							continue;
 						}
 					}
+					last_wood_index = cmn->last.index;
 				}
-//				scheduler_dump();
-//				gate_check(cmn->cur_dmts);
 			}
 
 

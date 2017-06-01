@@ -11,6 +11,7 @@
 gate_t *gates;
 int gates_num;
 
+
 void gate_run( int gate_num) {
 #ifdef DEBUG
 	syslog(LOG_INFO, "--------gate %d run", gate_num);
@@ -18,39 +19,12 @@ void gate_run( int gate_num) {
 }
 
 gate_t * gates_choose_by_wood( o22_wood_t *wood) {
-	gate_t *gt, *rt;
+	gate_t *rt;
 	int i;
 	
-	for (i=0, rt = NULL, gt = gates; i<gates_num; i++, gt++) {
-		if ( (wood->d2 < gt->dmin) || (gt->dmax < wood->d2) ) continue;
-		rt = gt;
+	for (i=0, rt = NULL; i<gates_num; i++) {
+		if ( (wood->d2 < gates[i].dmin) || (gates[i].dmax < wood->d2) ) continue;
+		rt = &gates[i];
 	}
 	return rt;
 }
-/*
-void gate_check(unsigned short dmts) {
-	scheduler_item_t *t1, *t2;
-	int i;
-	
-	i=0;
-	INFO_PRINTLC(22,10,"DMTS:%d", dmts);
-	
-	t1 = rootFill;
-	while(  !( t1 == NULL ) ) {
-		t2 = t1;
-		
-		INFO_PRINTLC(23+i,10,"%d %d %d", t1->wood.index, t1->ngate, t1->dmts);
-		
-		if ( dmts >= t2->dmts ) {
-			INFO_PRINTLC(23+i,40,"RUN %d", 1);
-			gate_run(t2->ngate);
-			t1 = t2->next;
-			scheduler_droptask(t2);
-		} else {
-			t1 = t1->next;
-		}
-		i++;
-	}
-}
-
-*/

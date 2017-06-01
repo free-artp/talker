@@ -22,12 +22,13 @@ delay = 100
 
 */
  
-int config_gates(dictionary *ini, int gate_num){
+int config_gate(dictionary *ini, int gate_num){
 	char buf[32];
 	int n;
 	
+	gates[gate_num].num = gate_num;
 	sprintf(buf,"gate-%-d:dmts", gate_num+1);
-	if( (gates[gate_num].dmts = iniparser_getint( ini, buf, -1 )) < 0 ) {
+	if( (gates[gate_num].dmts_delay = iniparser_getint( ini, buf, -1 )) < 0 ) {
 		syslog(LOG_ERR, "gate:%d no dmts", gate_num);
 		return 1;
 	}
@@ -92,6 +93,17 @@ int config(int argc, char* argv[]) {
 					exit(0);
 				}
 				syslog(LOG_INFO, "config: %s", optarg);
+				// Main section
+				if ( p = (char *) iniparser_getstring(ini, "Main:main_delay", NULL) ) {
+					main_delay = atoi( p );
+					if ( (main_delay<=0) || (main_delay> MAX_DELAY)) {
+						syslog(LOG_ERR, "send delay [%s] not supported", p);
+						closelog();
+						exit(1);
+					}
+					syslog(LOG_INFO, "send delay: %d", main_delay);
+				}
+				// Port section
 				if ( p = (char *) iniparser_getstring(ini, "Port:port", NULL) ) {
 					strncpy(fn_port, p, strlen(p));
 					syslog(LOG_INFO, "port: %s", fn_port);
@@ -127,13 +139,13 @@ int config(int argc, char* argv[]) {
 				if ( gates_num = iniparser_getint(ini, "Gates:number", 0) ) {
 					gates = malloc( sizeof(gate_t) * gates_num);
 					for (n=0; n < gates_num; n++ ){
-						if ( config_gates(ini, n) ) {
+						if ( config_gate(ini, n) ) {
 							syslog(LOG_ERR, "could not configure gate %d", n);
 							closelog();
 							exit(1);
 						}
 						syslog(LOG_INFO, "gate-%-d dmts:%d dmin:%d dmax:%d pindir:%d dir:%d delay:%d",n,
-							gates[n].dmts, gates[n].dmin, gates[n].dmax, gates[n].pindir, gates[n].dir, gates[n].delay);
+							gates[n].dmts_delay, gates[n].dmin, gates[n].dmax, gates[n].pindir, gates[n].dir, gates[n].delay);
 					}
 				}
 				
@@ -162,7 +174,7 @@ int config(int argc, char* argv[]) {
 			  }
 			  main_delay = atoi(buf);
 			  if (main_delay == 0) {
-				syslog(LOG_ERR, "baud rate [%s] not supported", buf);
+				syslog(LOG_ERR, "delay [%s] not supported", buf);
 				closelog();
 				exit(1);
 			  }

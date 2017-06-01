@@ -4,7 +4,9 @@
 	#ifdef INFO
 		
 		extern FILE * infoc;
-
+		#define INFO_MAIN_LINE 1
+		#define INFO_LIST_LINE 2
+		
 		#define INFO_INIT() do{ if (infoc = fopen( "/dev/console", "w" )) setbuf(infoc,NULL); } while( 0 )
 //		#define INFO_INIT() do{ infoc = stdout; } while( 0 )
 		#define INFO_CLS() do{ fprintf( infoc, "\033[2J\033[;H" ); } while( 0 )
