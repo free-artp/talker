@@ -23,22 +23,21 @@ long_line_behaviour=1
 long_line_column=72
 
 [files]
-current_page=9
-FILE_NAME_0=734;Make;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2FMakefile;0;4
-FILE_NAME_1=623;Conf;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Ftalker.ini;0;4
-FILE_NAME_2=2098;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fmain.c;0;4
-FILE_NAME_3=8793;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fcomm.c;0;4
-FILE_NAME_4=266;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fcomm.h;0;4
-FILE_NAME_5=1009;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fconfig.c;0;4
-FILE_NAME_6=0;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fconfig.h;0;4
-FILE_NAME_7=0;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fdaemon.c;0;4
-FILE_NAME_8=1646;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fopto22.h;0;4
-FILE_NAME_9=677;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fscheduler.c;0;4
-FILE_NAME_10=729;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fscheduler.h;0;4
-FILE_NAME_11=434;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fgates.h;0;4
-FILE_NAME_12=956;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fgates.c;0;4
-FILE_NAME_13=246;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fcons.c;0;4
-FILE_NAME_14=411;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Finfo.h;0;4
+current_page=2
+FILE_NAME_0=684;Make;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2FMakefile;0;4
+FILE_NAME_1=24;Conf;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Ftalker.ini;0;4
+FILE_NAME_2=663;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fmain.c;0;4
+FILE_NAME_3=1284;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fdaemon.c;0;4
+FILE_NAME_4=6975;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fcomm.c;0;4
+FILE_NAME_5=881;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fcomm.h;0;4
+FILE_NAME_6=253;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fconfig.c;0;4
+FILE_NAME_7=321;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fconfig.h;0;4
+FILE_NAME_8=1721;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fopto22.h;0;4
+FILE_NAME_9=611;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fscheduler.c;0;4
+FILE_NAME_10=360;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fscheduler.h;0;4
+FILE_NAME_11=166;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fgates.h;0;4
+FILE_NAME_12=507;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Fgates.c;0;4
+FILE_NAME_13=123;C;0;EUTF-8;1;1;0;%2Fhome%2Fartp%2Frpi%2Fprojects%2Ftalker%2Finfo.h;0;4
 
 [VTE]
 last_dir=/home/artp

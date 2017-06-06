@@ -29,6 +29,9 @@
 	extern int		pin_dtr;			// пин для переключения прием.передатчика
 	extern int		send_delay;			// задержка до выключения приемника (usec)
 
+	extern volatile int port_busy_w;
+	extern volatile int port_busy_r;
+
 	int		main_delay;
 
 	void init_port();

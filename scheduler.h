@@ -26,6 +26,24 @@ extern scheduler_item_t *rootEmpty;
 extern scheduler_item_t *sch_storage_head;
 extern volatile int scheduler_list_busy;
 
+//static inline void spinlock(volatile int *lock);
+//static inline void spinunlock(volatile int *lock);
+//inline void spinlock(volatile int *lock);
+//inline void spinunlock(volatile int *lock);
+
+static inline void spinlock(volatile int *lock)
+{
+    while(!__sync_bool_compare_and_swap(lock, 0, 1))
+    {
+        sched_yield();
+    }
+}
+static inline void spinunlock(volatile int *lock)
+{
+    *lock = 0;
+}
+
+
 void release_scheduler();
 void init_scheduler();
 int scheduler_addtask( unsigned short cur_dmts, gate_t *cur_gate, o22_wood_t *wood, int check_lock);

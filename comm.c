@@ -40,10 +40,14 @@ int		baud;				// скорость порта
 int		pin_dtr;			// пин для переключения прием.передатчика
 int		send_delay;			// задержка до выключения приемника
 
+volatile int port_busy_w = 0;
+volatile int port_busy_r = 0;
 //----------------------------------------
 
 void init_port() {
 
+	if (fd_port) close(fd_port);
+	
 	fd_port = open (fn_port, O_RDWR | O_NOCTTY | O_NDELAY);
 	
 	if (fd_port < 0)
@@ -238,17 +242,13 @@ int mk_req( unsigned char cmd, unsigned char* dop, size_t ldop) {
 //=================================================
 
 void * writer(void *arg) {
-	int l,i;
-	unsigned char* s;
-	o22_header_t* header;
-	unsigned short crc;
-	
-	header = (o22_header_t*)buffer;
-	
+	int l;
 	while (1) {
 		
 		usleep( main_delay );
-		
+
+		spinlock( &port_busy_w );
+
 #ifdef DEBUG_SYSLOG
 		if (buff_cnt) {
 			crc = crc16(buffer, header->packet_size);
@@ -272,8 +272,9 @@ void * writer(void *arg) {
 		
 		write(fd_port, buffer, l);
 		usleep(send_delay);  // 19200: min 3000, max 4000  = 3500! А в питоне - 12 ms
-		
 		digitalWrite (pin_dtr, LOW);
+		
+		spinunlock( &port_busy_w );
 
 	}
 }
@@ -283,21 +284,22 @@ void * writer(void *arg) {
 void * reader(void *arg) {
 	struct pollfd  poll_fd;
 	int n;
-	unsigned short* ind;
 	o22_header_t* header;
 	o22_common_t* cmn;
 	unsigned short crc, crc_buff;
 	gate_t *cur_gate;
 	
-	poll_fd.fd = fd_port;
-	poll_fd.events = POLLIN;
-	poll_fd.revents = 0;
 
 	header = (o22_header_t*)buffer;
 
 	INFO_CLS();
 
 	while (1) {
+		spinlock( &port_busy_r );
+		
+		poll_fd.fd = fd_port;
+		poll_fd.events = POLLIN;
+		poll_fd.revents = 0;
 		n = poll(&poll_fd, 1, -1); // wait here
 		
 		if (n < 0) {
@@ -307,6 +309,8 @@ void * reader(void *arg) {
 
 		if (poll_fd.revents & POLLIN) {
 			n = read(poll_fd.fd, &buffer[buff_cnt], sizeof(buffer)-buff_cnt );
+			spinunlock( &port_busy_r );
+			
 			buff_cnt += n;
 			poll_fd.revents = 0;
 		
@@ -356,8 +360,10 @@ void * reader(void *arg) {
 
 			buff_cnt = (buff_cnt >= 2047)?0:buff_cnt;
 			
-		}
-	}
+		}	// if poll
+		spinunlock( &port_busy_r );
+	}	// while
+	return NULL;
 }
 
 

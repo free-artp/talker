@@ -15,9 +15,6 @@
 #include "scheduler.h"
 #include "info.h"
 
-#ifdef INFO
-FILE * infoc;
-#endif
 
 int main(int argc, char* argv[]) {
 	

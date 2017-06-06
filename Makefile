@@ -7,7 +7,8 @@ CROSS_COMPILE=arm-linux-gnueabihf
 MY_SYSROOT=../../rpi-sysroot
 
 TARGET=talker
-SOURCES=main.c comm.c config.c scheduler.c gates.c
+#SOURCES=main.c comm.c config.c scheduler.c gates.c
+SOURCES=daemon.c comm.c config.c scheduler.c gates.c
 
 CC=$(CROSS_COMPILE)-cc
 
@@ -26,7 +27,7 @@ SYSROOT := $(TOOLCHAIN)/$(CROSS_COMPILE)/sysroot
 
 
 #CCFLAGS = -O0 -g -Wall
-CCFLAGS = -O0 -g -I$(MY_SYSROOT)/usr/include -DDEBUG -DINFO
+CCFLAGS = -O0 -g -I$(MY_SYSROOT)/usr/include -DDEBUG -DINFO -DDAEMON
 #LDFLAGS = -L$(TOOLCHAIN)/arm-linux-gnueabihf/sysroot/lib/ -lpthread -lwiringPi
 LDFLAGS = -L$(MY_SYSROOT)/lib/arm-linux-gnueabihf -L$(MY_SYSROOT)/usr/lib -lpthread -lwiringPi -liniparser
 

@@ -18,17 +18,10 @@ scheduler_item_t *sch_storage_head = NULL;
 
 volatile int scheduler_list_busy = 0;
 
-static inline void spinlock(volatile int *lock)
-{
-    while(!__sync_bool_compare_and_swap(lock, 0, 1))
-    {
-        sched_yield();
-    }
-}
-static inline void spinunlock(volatile int *lock)
-{
-    *lock = 0;
-}
+#ifdef INFO
+FILE * infoc;
+#endif
+
 
 void release_scheduler() {
 	if (sch_storage_head) free(sch_storage_head);
@@ -115,7 +108,8 @@ void scheduler_dump() {
 	int i;
 
 	spinlock(&scheduler_list_busy);
-	for (tmp = rootEmpty,i = 0; !(tmp == NULL); tmp = tmp->next, i++) INFO_PRINTLC(i+1, 10, "%-d %x", i, tmp);
+//	for (tmp = rootEmpty,i = 0; !(tmp == NULL); tmp = tmp->next, i++) INFO_PRINTLC(i+1, 10, "%-d %x", i, tmp);
+	for (tmp = rootEmpty,i = 0; !(tmp == NULL); tmp = tmp->next, i++);
 	printf ("\nSCH Empty: %d nodes\n", i);
 	for (tmp = rootFill,i = 0; !(tmp == NULL); tmp = tmp->next, i++) {
 		printf("SCH %x %d index: %d D1: %d D3: %d Length: %d\n", tmp, i, tmp->wood.index, tmp->wood.d1, tmp->wood.d3, tmp->wood.length);
@@ -136,8 +130,7 @@ scheduler_item_t * scheduler_findtask_by_wood_index(unsigned short index) {
 }
 
 // ---------------- thread for check the wood's list
-//#define timer_expired(t) \
-//	((clock_time_t)(clock_time() - (t)->start) >= (clock_time_t)(t)->interval)
+//#define timer_expired(t) ((clock_time_t)(clock_time() - (t)->start) >= (clock_time_t)(t)->interval)
 //
 // unsigned int
 // (current - start) >= interval

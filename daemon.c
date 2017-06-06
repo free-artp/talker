@@ -18,6 +18,15 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+// artp
+#include <syslog.h>
+#include <pthread.h>
+#include "config.h"
+#include "comm.h"
+#include "scheduler.h"
+#include "info.h"
+//
+
 // лимит для установки максимально кол-во открытых дискрипторов
 #define FD_LIMIT			1024*10
 
@@ -25,45 +34,81 @@
 #define CHILD_NEED_WORK			1
 #define CHILD_NEED_TERMINATE	2
 
-#define PID_FILE "/var/run/my_daemon.pid"
+
+pthread_t twriter, treader, tscheduler;
+
+
 
 // функция записи лога
-void WriteLog(char* Msg, ...)
+// тут должен быть код который пишет данные в лог
+void write_log(char* Msg, ...)
 {
 	FILE* f;
-	// тут должен быть код который пишет данные в лог
-	f=fopen("/tmp/daemon.log","aw");
+	char log_name[128];
+	
+	sprintf( log_name, "/var/log/%s.log", progname);
+	f=fopen( log_name,"aw");
 	fputs(Msg, f);
 	fclose(f);
 }
 
-// функция загрузки конфига
-int LoadConfig(char* FileName)
-{
-	// тут должен быть код для загрузки конфига
-	return 1;
-}
-
-// функция которая загрузит конфиг заново
-// и внесет нужные поправки в работу
-int ReloadConfig()
-{
-	// код функции
-	return 1;
-}
 
 // функция для остановки потоков и освобождения ресурсов
-void DestroyWorkThread()
+// тут должен быть код который остановит все потоки и
+// корректно освободит ресурсы
+void destroy_work_thread()
 {
-	// тут должен быть код который остановит все потоки и
-	// корректно освободит ресурсы
+	pthread_cancel(twriter);
+	pthread_cancel(treader);
+	pthread_cancel(tscheduler);
+
 }
 
 // функция которая инициализирует рабочие потоки
-int InitWorkThread()
+int init_work_thread()
 {
-	// код функции
-	return 1;
+	pthread_attr_t attr;
+	int result;
+
+	init_port();
+
+	INFO_INIT();
+	
+	init_hard();
+	init_scheduler();
+
+
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	result = pthread_create(&twriter, &attr, writer, NULL);
+	if ( result != 0 ) {
+		syslog(LOG_ERR, "could not create thread writer");
+		return 1;
+	}
+	syslog(LOG_INFO, "writer created");
+	pthread_attr_destroy(&attr);
+	
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	result = pthread_create(&treader, &attr, reader, NULL);
+	if ( result != 0 ) {
+		syslog(LOG_ERR, "could not create thread reader");
+		return 1;
+	}
+	syslog(LOG_INFO, "reader created");
+	pthread_attr_destroy(&attr);
+
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	result = pthread_create(&tscheduler, &attr, scheduler_executor, NULL);
+	if ( result != 0 ) {
+		syslog(LOG_ERR, "could not create thread sheduler_executor");
+		return 1;
+	}
+	syslog(LOG_INFO, "scheduler_executor created");
+	pthread_attr_destroy(&attr);
+	
+	return 0;
 }
 
 // функция обработки сигналов
@@ -76,7 +121,7 @@ static void signal_error(int sig, siginfo_t *si, void *ptr)
 	char** Messages;
 
 	// запишем в лог что за сигнал пришел
-	WriteLog("[DAEMON] Signal: %s, Addr: 0x%0.16X\n", strsignal(sig), si->si_addr);
+	write_log("[DAEMON] Signal: %s, Addr: 0x%0.16X\n", strsignal(sig), si->si_addr);
 
 	#ifdef __arm__
 		ErrorAddr = (void*)((ucontext_t*)ptr)->uc_mcontext.fault_address;
@@ -98,22 +143,22 @@ static void signal_error(int sig, siginfo_t *si, void *ptr)
 	Messages = backtrace_symbols(Trace, TraceSize);
 	if (Messages)
 	{
-		WriteLog("== Backtrace ==\n");
+		write_log("== Backtrace ==\n");
 
 		// запишем в лог
 		for (x = 1; x < TraceSize; x++)
 		{
-			WriteLog("%s\n", Messages[x]);
+			write_log("%s\n", Messages[x]);
 		}
 
-		WriteLog("== End Backtrace ==\n");
+		write_log("== End Backtrace ==\n");
 		free(Messages);
 	}
 
-	WriteLog("[DAEMON] Stopped\n");
+	write_log("[DAEMON] Stopped\n");
 
 	// остановим все рабочие потоки и корректно закроем всё что надо
-	DestroyWorkThread();
+	destroy_work_thread();
 
 	// завершим процесс с кодом требующим перезапуска
 	exit(CHILD_NEED_WORK);
@@ -121,7 +166,7 @@ static void signal_error(int sig, siginfo_t *si, void *ptr)
 
 
 // функция установки максимального кол-во дескрипторов которое может быть открыто 
-int SetFdLimit(int MaxFd)
+int set_fdlimit(int MaxFd)
 {
 	struct rlimit lim;
 	int           status;
@@ -138,7 +183,7 @@ int SetFdLimit(int MaxFd)
 }
 
 
-int WorkProc()
+int work_proc()
 {
 	struct sigaction sigact;
 	sigset_t         sigset;
@@ -177,13 +222,13 @@ int WorkProc()
 	sigprocmask(SIG_BLOCK, &sigset, NULL);
 
 	// Установим максимальное кол-во дискрипторов которое можно открыть
-	SetFdLimit(FD_LIMIT);
+	set_fdlimit(FD_LIMIT);
 
 	// запишем в лог, что наш демон стартовал
-	WriteLog("[DAEMON] Started\n");
+	syslog(LOG_INFO,"[DAEMON] Started\n");
 
 	// запускаем все рабочие потоки
-	status = InitWorkThread();
+	status = init_work_thread();
 	if (!status)
 	{
 		// цикл ожижания сообщений
@@ -196,14 +241,14 @@ int WorkProc()
 			if (signo == SIGUSR1)
 			{
 				// обновим конфиг
-				status = ReloadConfig();
+				status = reload_config();
 				if (status == 0)
 				{
-					WriteLog("[DAEMON] Reload config failed\n");
+					syslog(LOG_ERR,"[DAEMON] Reload config failed\n");
 				}
 				else
 				{
-					WriteLog("[DAEMON] Reload config OK\n");
+					syslog(LOG_INFO,"[DAEMON] Reload config OK\n");
 				}
 			}
 			else // если какой-либо другой сигнал, то выйдим из цикла
@@ -213,21 +258,21 @@ int WorkProc()
 		}
 
 		// остановим все рабочеи потоки и корректно закроем всё что надо
-		DestroyWorkThread();
+		destroy_work_thread();
 	}
 	else
 	{
-		WriteLog("[DAEMON] Create work thread failed\n");
+		syslog(LOG_ERR,"[DAEMON] Create work thread failed\n");
 	}
 
-	WriteLog("[DAEMON] Stopped\n");
+	syslog(LOG_INFO,"[DAEMON] Stopped\n");
 
 	// вернем код не требующим перезапуска
 	return CHILD_NEED_TERMINATE;
 }
 
 
-void SetPidFile(char* Filename)
+void set_pidfile(char* Filename)
 {
 	FILE* f;
 
@@ -241,7 +286,7 @@ void SetPidFile(char* Filename)
 
 
 
-int MonitorProc()
+int monitor_proc()
 {
 	int       pid;
 	int       status;
@@ -272,7 +317,7 @@ int MonitorProc()
 	sigprocmask(SIG_BLOCK, &sigset, NULL);
 
 	// данная функция создат файл с нашим PID'ом
-	SetPidFile(PID_FILE);
+	set_pidfile(pid_file);
 
 	// бесконечный цикл работы
 	for (;;)
@@ -289,14 +334,14 @@ int MonitorProc()
 		if (pid == -1) // если произошла ошибка
 		{
 			// запишем в лог сообщение об этом
-			WriteLog("[MONITOR] Fork failed (%s)\n", strerror(errno));
+			syslog(LOG_ERR,"[MONITOR] Fork failed (%s)\n", strerror(errno));
 		}
 		else if (!pid) // если мы потомок
 		{
 			// данный код выполняется в потомке
 
 			// запустим функцию отвечающую за работу демона
-			status = WorkProc();
+			status = work_proc();
 
 			// завершим процесс
 			exit(status);
@@ -321,7 +366,7 @@ int MonitorProc()
 				if (status == CHILD_NEED_TERMINATE)
 				{
 					// запишем в лог сообщени об этом
-					WriteLog("[MONITOR] Childer stopped\n");
+					syslog(LOG_ERR,"[MONITOR] Childer stopped\n");
 
 					// прервем цикл
 					break;
@@ -329,7 +374,7 @@ int MonitorProc()
 				else if (status == CHILD_NEED_WORK) // если требуется перезапустить потомка
 				{
 					// запишем в лог данное событие
-					WriteLog("[MONITOR] Childer restart\n");
+					syslog(LOG_INFO, "[MONITOR] Childer restart\n");
 				}
 			}
 			else if (siginfo.si_signo == SIGUSR1) // если пришел сигнал что необходимо перезагрузить конфиг
@@ -340,7 +385,7 @@ int MonitorProc()
 			else // если пришел какой-либо другой ожидаемый сигнал
 			{
 				// запишем в лог информацию о пришедшем сигнале
-				WriteLog("[MONITOR] Signal %s\n", strsignal(siginfo.si_signo));
+				syslog(LOG_INFO,"[MONITOR] Signal %s\n", strsignal(siginfo.si_signo));
 
 				// убьем потомка
 				kill(pid, SIGTERM);
@@ -351,10 +396,10 @@ int MonitorProc()
 	} // for (;;)
 
 	// запишем в лог, что мы остановились
-	WriteLog("[MONITOR] Stopped\n");
+	syslog(LOG_INFO,"[MONITOR] Stopped\n");
 
 	// удалим файл с PID'ом
-	unlink(PID_FILE);
+	unlink(pid_file);
 
 	return status;
 }
@@ -365,20 +410,19 @@ int main(int argc, char** argv)
 	int status;
 	int pid;
 
-	// если параметров командной строки меньше двух, то покажем как использовать демана
-	if (argc != 2)
-	{
-		printf("Usage: ./my_daemon filename.cfg\n");
-		return -1;
-	}
 
 	// загружаем файл конфигурации
-	status = LoadConfig(argv[1]);
-
-	if (!status) // если произошла ошибка загрузки конфига
+	if (config(argc, argv)) // если произошла ошибка загрузки конфига
 	{
 		printf("Error: Load config failed\n");
 		return -1;
+	}
+
+	if (!mode_daemon) {
+		if ( ! (init_work_thread()) ) {
+			exit(1);
+		} 
+		while(1);
 	}
 
 	// создаем потомка
@@ -388,7 +432,8 @@ int main(int argc, char** argv)
 	{
 		// выведем на экран ошибку и её описание
 		printf("Start Daemon Error: %s\n", strerror(errno));
-
+		syslog(LOG_INFO, "Start Daemon Error: %s\n", strerror(errno));
+		closelog();
 		return -1;
 	}
 	else if (!pid) // если это потомок
@@ -411,7 +456,7 @@ int main(int argc, char** argv)
 		close(STDERR_FILENO);
 
 		// Данная функция будет осуществлять слежение за процессом
-		status = MonitorProc();
+		status = monitor_proc();
 
 		return status;
 	}
