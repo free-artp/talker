@@ -80,32 +80,28 @@ int init_work_thread()
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
 	result = pthread_create(&twriter, &attr, writer, NULL);
 	if ( result != 0 ) {
 		syslog(LOG_ERR, "could not create thread writer");
 		return 1;
 	}
 	syslog(LOG_INFO, "writer created");
-	pthread_attr_destroy(&attr);
-	
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
 	result = pthread_create(&treader, &attr, reader, NULL);
 	if ( result != 0 ) {
 		syslog(LOG_ERR, "could not create thread reader");
 		return 1;
 	}
 	syslog(LOG_INFO, "reader created");
-	pthread_attr_destroy(&attr);
 
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	result = pthread_create(&tscheduler, &attr, scheduler_executor, NULL);
 	if ( result != 0 ) {
 		syslog(LOG_ERR, "could not create thread sheduler_executor");
 		return 1;
 	}
 	syslog(LOG_INFO, "scheduler_executor created");
+
 	pthread_attr_destroy(&attr);
 	
 	return 0;
